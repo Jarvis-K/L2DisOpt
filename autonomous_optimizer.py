@@ -18,8 +18,8 @@ def make_observation(obj_value, obj_values, gradients, num_params_lst, history_l
         observation = np.zeros((history_len, 1+num_params), dtype="float32")
         try:
             for j in range(len(obj_values)):
-                observation[j, 0] = obj_value - torch.tensor(obj_values)[j].detach().numpy()
-                observation[j, 1:] = gradients[j][i].detach().numpy()
+                observation[j, 0] = obj_value - obj_values[j].cpu().numpy()
+                observation[j, 1:] = gradients[j][i].cpu().numpy()
         except:
             import pdb; pdb.set_trace()
         observation /= 50        
@@ -282,7 +282,7 @@ class MARLEnv(ParallelEnv):
 
         param_counter = 0
         for p in self.model.parameters():
-            delta_p = torch.Tensor(actions[self.possible_agents[param_counter]])
+            delta_p = torch.Tensor(actions[self.possible_agents[param_counter]]).cuda()
             p.add_(delta_p.reshape(p.shape))
             param_counter += 1
         
