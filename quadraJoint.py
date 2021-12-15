@@ -81,7 +81,6 @@ if __name__ == '__main__':
 
     quadratic_env = env
 
-
     quadratic_policy = stable_baselines3.PPO(config['policy_type'], quadratic_env, learning_rate=config['lr'], gamma=config['gamma'],
                             n_steps=2, verbose=0, policy_kwargs = policy_kwargs, tensorboard_log=f"runs/{experiment_name}")
 
