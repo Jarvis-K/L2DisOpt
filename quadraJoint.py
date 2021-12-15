@@ -45,7 +45,7 @@ config = {
     "policy_type": "MlpPolicy",
     "episodes": 200,
     "env_name": "convex_quadratic",
-    "num_vars": 20,
+    "num_vars": 200,
     "num_steps": 40,
     "lr": args.lr,
     "gamma": args.gamma,
@@ -73,11 +73,11 @@ if __name__ == '__main__':
     policy_kwargs = dict(activation_fn = torch.nn.Tanh,
         net_arch = [dict(pi = [config['featdim'], config['featdim']], vf = [config['featdim'], config['featdim']])])
 
-    quadratic_dataset = [benchmark.convex_quadratic_joint(num_vars=config['num_vars']) for _ in range(9)]
+    quadratic_dataset = [benchmark.convex_quadratic_joint(num_vars=config['num_vars']) for _ in range(360)]
 
     env = autonomous_optimizer.MARLEnv(quadratic_dataset, num_steps=config['num_steps'], history_len=25)
     env = ss.pettingzoo_env_to_vec_env_v0(ss.multiagent_wrappers.pad_action_space_v0(ss.multiagent_wrappers.pad_observations_v0(env)))
-    env = ss.concat_vec_envs_v0(env, 1, num_cpus=40, base_class='stable_baselines3')
+    env = ss.concat_vec_envs_v0(env, 10, num_cpus=20, base_class='stable_baselines3')
 
     quadratic_env = env
 
