@@ -1,0 +1,17 @@
+program: quadra.py
+method: bayes
+metric:
+  name: gap
+  goal: minimize
+parameters:
+  featdim: 
+    values: [32, 64, 128, 256]
+
+  activation: 
+    values: ['relu', 'sigmoid', 'tanh']
+
+early_terminate:
+  type: hyperband
+  s: 2
+  eta: 3
+  max_iter: 30
