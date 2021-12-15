@@ -8,6 +8,9 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+wandb/
+run/
+models/
 build/
 develop-eggs/
 dist/
