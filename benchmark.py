@@ -63,6 +63,43 @@ def convex_quadratic(num_vars=2):
         "b": b.numpy(),
     }
     
+def convex_quadratic_joint(num_vars=2):
+    """
+    Generate a symmetric positive semidefinite matrix A with eigenvalues
+    uniformly in [1, 30].
+
+    """
+
+    # First generate an orthogonal matrix (of eigenvectors)
+    eig_vecs = torch.tensor(
+        scipy.stats.ortho_group.rvs(dim=(num_vars)), dtype=torch.float
+    )
+    # Now generate eigenvalues
+    eig_vals = torch.rand(num_vars) * 29 + 1
+
+    A = eig_vecs @ torch.diag(eig_vals) @ eig_vecs.T
+    b = torch.normal(0, 1 / np.sqrt(num_vars), size=(num_vars,))
+
+    x0 = torch.normal(0, 0.5 / np.sqrt(num_vars), size=(num_vars,))
+
+    def quadratic(var):
+        try:
+            x = var.x
+        except:
+            x = torch.nn.utils.parameters_to_vector(var.parameters())
+        return 0.5 * x.T @ A @ x + b.T @ x
+
+    optimal_x = scipy.linalg.solve(A.numpy(), -b.numpy(), assume_a="pos")
+    optimal_val = quadratic(Variable(torch.tensor(optimal_x))).item()
+    return {
+        "model0": x0,
+        "obj_function": quadratic,
+        "optimal_x": optimal_x,
+        "optimal_val": optimal_val,
+        "A": A.numpy(),
+        "b": b.numpy(),
+    }
+
 class myModel(nn.Module):
     def __init__(self, x0):
         super(myModel, self).__init__()
