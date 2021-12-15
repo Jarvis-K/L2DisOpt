@@ -92,7 +92,7 @@ def convex_quadratic_joint(num_vars=2):
     optimal_x = scipy.linalg.solve(A.numpy(), -b.numpy(), assume_a="pos")
     optimal_val = quadratic(Variable(torch.tensor(optimal_x))).item()
     return {
-        "model0": x0,
+        "model0": Variable(x0),
         "obj_function": quadratic,
         "optimal_x": optimal_x,
         "optimal_val": optimal_val,

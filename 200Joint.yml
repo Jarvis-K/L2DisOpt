@@ -1,0 +1,24 @@
+program: quadraJoint.py
+method: bayes
+metric:
+  name: gap
+  goal: minimize
+
+parameters:
+  lr: 
+    values: [1e-4, 3e-4, 1e-3]
+  
+  gamma:
+    values: [0.85, 0.7, 0.9, 0.95]
+    
+  featdim: 
+    values: [32, 64, 128, 256]
+
+  activation: 
+    values: ['relu', 'sigmoid', 'tanh']
+
+early_terminate:
+  type: hyperband
+  s: 2
+  eta: 3
+  max_iter: 30
