@@ -76,11 +76,12 @@ if __name__ == '__main__':
 
     env = autonomous_optimizer.MARLEnv(quadratic_dataset, num_steps=config['num_steps'], history_len=25)
     env = ss.pettingzoo_env_to_vec_env_v1(ss.multiagent_wrappers.pad_action_space_v0(ss.multiagent_wrappers.pad_observations_v0(env)))
-    env = ss.concat_vec_envs_v1(env, 6, num_cpus=20, base_class='stable_baselines3')
+    env = ss.concat_vec_envs_v1(env, 1, num_cpus=20, base_class='stable_baselines3')
 
     quadratic_env = env
 
-
+    quadratic_env = vec_env.DummyVecEnv([
+        lambda: monitor.Monitor(quadratic_env)]*6)
     quadratic_policy = stable_baselines3.PPO(config['policy_type'], quadratic_env, learning_rate=config['lr'], gamma=config['gamma'],
                             n_steps=2, verbose=0, policy_kwargs = policy_kwargs, tensorboard_log=f"runs/{experiment_name}")
 
