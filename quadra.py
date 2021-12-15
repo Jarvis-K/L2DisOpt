@@ -75,8 +75,8 @@ if __name__ == '__main__':
     quadratic_dataset = [benchmark.convex_quadratic(num_vars=config['num_vars']) for _ in range(360)]
 
     env = autonomous_optimizer.MARLEnv(quadratic_dataset, num_steps=config['num_steps'], history_len=25)
-    env = ss.pettingzoo_env_to_vec_env_v0(ss.multiagent_wrappers.pad_action_space_v0(ss.multiagent_wrappers.pad_observations_v0(env)))
-    env = ss.concat_vec_envs_v0(env, 10, num_cpus=20, base_class='stable_baselines3')
+    env = ss.pettingzoo_env_to_vec_env_v1(ss.multiagent_wrappers.pad_action_space_v0(ss.multiagent_wrappers.pad_observations_v0(env)))
+    env = ss.concat_vec_envs_v1(env, 6, num_cpus=20, base_class='stable_baselines3')
 
     quadratic_env = env
 
