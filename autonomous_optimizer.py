@@ -282,13 +282,19 @@ class MARLEnv(ParallelEnv):
 
         param_counter = 0
         for p in self.model.parameters():
-            delta_p = torch.Tensor(actions[self.possible_agents[param_counter]]).cuda()
-            p.add_(delta_p.reshape(p.shape))
+            delta_p = torch.Tensor(actions[self.possible_agents[param_counter]])
+            
+            try:
+                p.add_(delta_p.reshape(p.shape))
+            except:
+                p.add_(delta_p.reshape(p.shape).cuda())
             param_counter += 1
         
         # Calculate the new objective value
         with torch.enable_grad():
+            self.model.cuda()
             self.model.zero_grad()
+            # self.obj_function.cuda()
             obj_value = self.obj_function(self.model)
             obj_value.backward()
 
@@ -323,7 +329,6 @@ class MARLEnv(ParallelEnv):
 
         if env_done:
             self.agents = []
-
         return observations, rewards, dones, infos
         
 

@@ -23,7 +23,7 @@ class Variable(nn.Module):
     def __init__(self, data: torch.Tensor):
         """Create Variable holding `data` tensor."""
         super().__init__()
-        self.x = nn.Parameter(data).cuda()
+        self.x = nn.Parameter(data)
 
 
 def convex_quadratic(num_vars=2):
@@ -50,7 +50,8 @@ def convex_quadratic(num_vars=2):
             x = var.x
         except:
             x = torch.nn.utils.parameters_to_vector(var.parameters())
-        return 0.5 * x.T @ A @ x + b.T @ x
+        
+        return 0.5 * x.cuda().T @ A.cuda() @ x.cuda() + b.T.cuda() @ x.cuda()
 
     optimal_x = scipy.linalg.solve(A.numpy(), -b.numpy(), assume_a="pos")
     optimal_val = quadratic(Variable(torch.tensor(optimal_x))).item()
@@ -77,27 +78,32 @@ def convex_quadratic_joint(num_vars=2):
     # Now generate eigenvalues
     eig_vals = torch.rand(num_vars) * 29 + 1
 
-    A = (eig_vecs @ torch.diag(eig_vals) @ eig_vecs.T).cuda()
-    b = (torch.normal(0, 1 / np.sqrt(num_vars), size=(num_vars,))).cuda()
+    A = (eig_vecs @ torch.diag(eig_vals) @ eig_vecs.T)
+    b = (torch.normal(0, 1 / np.sqrt(num_vars), size=(num_vars,)))
 
-    x0 = torch.normal(0, 0.5 / np.sqrt(num_vars), size=(num_vars,)).cuda()
+    x0 = torch.normal(0, 0.5 / np.sqrt(num_vars), size=(num_vars,))
 
     def quadratic(var):
-        try:
-            x = var.x
+        x = var.x
+        x = x.cuda()
+        try: 
+            0.5 * x.T @ A.cuda() @ x + b.T.cuda() @ x
         except:
-            x = torch.nn.utils.parameters_to_vector(var.parameters())
-        return 0.5 * x.T @ A @ x + b.T @ x
+            import pdb; pdb.set_trace()
+        return 0.5 * x.T @ A.cuda() @ x + b.T.cuda() @ x
 
     optimal_x = scipy.linalg.solve(A.cpu().numpy(), -b.cpu().numpy(), assume_a="pos")
-    optimal_val = quadratic(Variable(torch.tensor(optimal_x))).item()
+    try:
+        optimal_val = quadratic(Variable(torch.tensor(optimal_x))).item()
+    except Exception:
+        import pdb; pdb.set_trace()
     return {
         "model0": Variable(x0),
         "obj_function": quadratic,
-        "optimal_x": torch.Tensor(optimal_x).cuda(),
+        "optimal_x": optimal_x,
         "optimal_val": optimal_val,
-        "A": A,
-        "b": b,
+        "A": A.numpy(),
+        "b": b.numpy(),
     }
 
 class myModel(nn.Module):
