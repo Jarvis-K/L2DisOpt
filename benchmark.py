@@ -314,7 +314,7 @@ def run_all_optimizers(problem, iterations, tune_dict, policy):
 
     # Autonomous optimizer
     ao_vals, ao_traj = run_optimizer(
-        autonomous_optimizer.AutonomousOptimizer,
+        autonomous_optimizer.MARLAutonomousOptimizer,
         problem,
         iterations,
         {"policy": policy},

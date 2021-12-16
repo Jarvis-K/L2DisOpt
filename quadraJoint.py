@@ -26,7 +26,7 @@ import autonomous_optimizer
 import benchmark
 import argparse
 import time
-
+from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lr', type=float, default=3e-4)
@@ -53,6 +53,40 @@ config = {
     'featdim': args.featdim,
 }
 
+class TensorboardCallback(WandbCallback):
+    """
+    Custom callback for plotting additional values in tensorboard.
+    """
+    def __init__(self, verbose=0, model_save_path: str = None, model_save_freq: int = 0, gradient_save_freq: int = 0,):
+        super(TensorboardCallback, self).__init__(verbose, model_save_path, model_save_freq, gradient_save_freq)
+        self.num_episode = 0 
+        
+    def _on_rollout_start(self) -> None:
+        """
+        A rollout is the collection of environment interaction
+        using the current policy.
+        This event is triggered before collecting new samples.
+        """
+        self.rewards = np.zeros_like(self.training_env.venv.venv.shared_rews.shared_arr)
+    
+    def _on_rollout_end(self) -> None:
+        """
+        This event is triggered before updating the policy.
+        """
+        wandb.log({'episode/avg_rewards': np.mean(self.rewards)}, step=self.num_episode)
+        wandb.log({'episode/std_rewards': np.std(self.rewards)}, step=self.num_episode)
+        self.rewards = np.zeros_like(self.training_env.venv.venv.shared_rews.shared_arr)
+        self.num_episode += 1
+
+    def _on_step(self):
+        if self.model_save_freq > 0:
+            if self.model_save_path is not None:
+                if self.n_calls % self.model_save_freq == 0:
+                    self.save_model()
+        self.rewards += np.array(self.training_env.venv.venv.shared_rews.shared_arr)
+        self.dones = np.array(self.training_env.venv.venv.shared_dones.shared_arr)        
+        return True
+
 if __name__ == '__main__':
     # ctx_in_main = mp.get_context('forkserver')
     # ctx_in_main.set_forkserver_preload(['inherited'])
@@ -77,17 +111,16 @@ if __name__ == '__main__':
 
     env = autonomous_optimizer.MARLEnv(quadratic_dataset, num_steps=config['num_steps'], history_len=25)
     env = ss.pettingzoo_env_to_vec_env_v1(ss.multiagent_wrappers.pad_action_space_v0(ss.multiagent_wrappers.pad_observations_v0(env)))
-    env = ss.concat_vec_envs_v1(env, 1, num_cpus=40, base_class='stable_baselines3')
+    env = ss.concat_vec_envs_v1(env, 6, num_cpus=40, base_class='stable_baselines3')
 
-    quadratic_env = env
-    quadratic_env = vec_env.DummyVecEnv([ lambda: monitor.Monitor(quadratic_env)]*6)
+    quadratic_env = VecMonitor(env)
 
 
     quadratic_policy = stable_baselines3.PPO(config['policy_type'], quadratic_env, learning_rate=config['lr'], gamma=config['gamma'],
                             n_steps=2, verbose=0, policy_kwargs = policy_kwargs, tensorboard_log=f"runs/{experiment_name}")
 
     quadratic_policy.learn(total_timesteps=config['episodes'] * config['num_steps'] * len(quadratic_dataset),
-            callback=WandbCallback(
+            callback=TensorboardCallback(
                 model_save_freq=1000,
                 model_save_path=f"models/{experiment_name}"))
 
