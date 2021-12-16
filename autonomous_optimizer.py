@@ -91,6 +91,78 @@ class AutonomousOptimizer(optim.Optimizer):
         return obj_value
 
 
+class MARLAutonomousOptimizer(optim.Optimizer):
+    def __init__(self, params, policy, history_len=25):
+        """
+        Parameters:
+            policy: Policy that takes in history of objective values and gradients
+                as a feature vector - shape (history_len, num_parameters + 1),
+                and outputs a vector to update parameters by of shape (num_parameters,).
+            history_len: Number of previous iterations to keep objective value and
+                gradient information for.
+
+        """
+        super().__init__(params, {})
+
+        self.policy = policy
+        self.history_len = history_len
+        self.num_params = sum(
+            p.numel() for group in self.param_groups for p in group["params"]
+        )
+        self.num_params_lst, self.possible_agents = {}, []
+        
+        i = 0
+        for group in self.param_groups:
+            for p in group["params"]:
+                self.possible_agents.append('agent_'+str(i))
+                self.num_params_lst[self.possible_agents[i]] = p.numel()
+                i += 1
+        self.obj_values = []
+        self.gradients = []
+
+    @torch.no_grad()
+    def step(self, closure):
+        with torch.enable_grad():
+            obj_value = closure()
+
+        # Calculate the current gradient and flatten it
+        current_grad =[p.grad.flatten() for group in self.param_groups for p in group["params"]]
+
+        # Update history of objective values and gradients with current objective
+        # value and gradient.
+        if len(self.obj_values) >= self.history_len:
+            self.obj_values.pop(-1)
+            self.gradients.pop(-1)
+        self.obj_values.insert(0, obj_value)
+        self.gradients.insert(0, current_grad)
+
+        # Run policy
+        observation = make_observation(
+            obj_value.item(),
+            self.obj_values,
+            self.gradients,
+            self.num_params_lst,
+            self.history_len,
+        )
+        actions = {}
+
+        for agent in self.possible_agents:
+            action, _states = self.policy.predict(observation[agent], deterministic=True)
+            actions[agent] = torch.from_numpy(action)
+        # Update the parameters according to the policy
+        param_counter = 0
+        for group in self.param_groups:
+            for p in group["params"]:
+                delta_p = torch.Tensor(actions[self.possible_agents[param_counter]])
+            
+                try:
+                    p.add_(delta_p.reshape(p.shape))
+                except:
+                    p.add_(delta_p.reshape(p.shape).cuda())
+                param_counter += 1
+
+        return obj_value
+
 class Environment(gym.Env):
     """Optimization environment based on TF-Agents."""
 
@@ -275,6 +347,7 @@ class MARLEnv(ParallelEnv):
         - infos
         dicts where each dict looks like {agent_1: item_1, agent_2: item_2}
         '''
+        print('step')
         # If a user passes in actions with no agents, then just return empty observations, etc.
         if not actions:
             self.agents = []
@@ -325,7 +398,7 @@ class MARLEnv(ParallelEnv):
 
         
         self.current_step += 1
-        infos = {agent: {} for agent in self.agents}
+        infos = {agent: {'rew': -obj_value.item()} for agent in self.agents}
 
         if env_done:
             self.agents = []

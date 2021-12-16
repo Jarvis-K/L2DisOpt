@@ -22,7 +22,7 @@ import stable_baselines3
 from stable_baselines3.common import vec_env, monitor
 import wandb
 from wandb.integration.sb3 import WandbCallback
-
+# from stable_baselines3.common.vec_env import VecMonitor
 import autonomous_optimizer
 import benchmark
 import argparse
@@ -41,19 +41,22 @@ class TensorboardCallback(WandbCallback):
     """
     def __init__(self, verbose=0, model_save_path: str = None, model_save_freq: int = 0, gradient_save_freq: int = 0,):
         super(TensorboardCallback, self).__init__(verbose, model_save_path, model_save_freq, gradient_save_freq)
-        self.num_episode = 0 
+
+    def _on_rollout_start(self) -> None:
+        """
+        A rollout is the collection of environment interaction
+        using the current policy.
+        This event is triggered before collecting new samples.
+        """
         self.rewards = np.zeros_like(self.training_env.venv.venv.shared_rews.shared_arr)
-        
-        
     
     def _on_rollout_end(self) -> None:
         """
         This event is triggered before updating the policy.
         """
-        wandb.log({'episode/avg_rewards': np.mean(self.rewards)}, step=self.num_episode)
-        wandb.log({'episode/std_rewards': np.std(self.rewards)}, step=self.num_episode)
+        wandb.log({'episode/avg_rewards': np.mean(self.rewards)})
+        wandb.log({'episode/std_rewards': np.std(self.rewards)})
         self.rewards = np.zeros_like(self.training_env.venv.venv.shared_rews.shared_arr)
-        self.num_episode += 1
 
     def _on_step(self):
         if self.model_save_freq > 0:
@@ -61,7 +64,10 @@ class TensorboardCallback(WandbCallback):
                 if self.n_calls % self.model_save_freq == 0:
                     self.save_model()
         self.rewards += np.array(self.training_env.venv.venv.shared_rews.shared_arr)
-        self.dones = np.array(self.training_env.venv.venv.shared_dones.shared_arr)        
+        self.dones = np.array(self.training_env.venv.venv.shared_dones.shared_arr)
+        # import pdb; pdb.set_trace()
+  
+        
         return True
 
 if __name__ == '__main__':
@@ -77,7 +83,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     config = {
         "policy_type": "MlpPolicy",
-        "episodes": 200,
+        "episodes": 10,
         "env_name": "convex_quadratic",
         "num_vars": 200,
         "num_steps": 40,
@@ -102,7 +108,7 @@ if __name__ == '__main__':
     policy_kwargs = dict(activation_fn = torch.nn.Tanh,
         net_arch = [dict(pi = [config['featdim'], config['featdim']], vf = [config['featdim'], config['featdim']])])
 
-    quadratic_dataset = [benchmark.convex_quadratic(num_vars=config['num_vars']) for _ in range(360)]
+    quadratic_dataset = [benchmark.convex_quadratic(num_vars=config['num_vars']) for _ in range(90)]
 
     env = autonomous_optimizer.MARLEnv(quadratic_dataset, num_steps=config['num_steps'], history_len=25)
     env = ss.pettingzoo_env_to_vec_env_v0(ss.multiagent_wrappers.pad_action_space_v0(ss.multiagent_wrappers.pad_observations_v0(env)))
@@ -117,6 +123,11 @@ if __name__ == '__main__':
             callback=TensorboardCallback(
                 model_save_freq=1000,
                 model_save_path=f"models/{experiment_name}"))
+    # quadratic_policy.learn(total_timesteps=config['episodes'] * config['num_steps'] * len(quadratic_dataset),
+    #         callback=WandbCallback(
+    #             model_save_freq=1000,
+    #             model_save_path=f"models/{experiment_name}"))
+
 
     quadratic_tune = {
         "sgd": {"hyperparams": {"lr": 5e-2}},
