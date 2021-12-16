@@ -61,10 +61,15 @@ class TensorboardCallback(WandbCallback):
     def __init__(self, verbose=0, model_save_path: str = None, model_save_freq: int = 0, gradient_save_freq: int = 0,):
         super(TensorboardCallback, self).__init__(verbose, model_save_path, model_save_freq, gradient_save_freq)
         self.num_episode = 0 
+        
+    def _on_rollout_start(self) -> None:
+        """
+        A rollout is the collection of environment interaction
+        using the current policy.
+        This event is triggered before collecting new samples.
+        """
         self.rewards = np.zeros_like(self.training_env.venv.venv.shared_rews.shared_arr)
         
-        
-    
     def _on_rollout_end(self) -> None:
         """
         This event is triggered before updating the policy.
